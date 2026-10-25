@@ -1,7 +1,98 @@
 <!doctype html>
-<html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f7a9d0"><meta name="description" content="Личная вселенная Сабиши. Четырнадцать лет, бесконечность возможностей."><title>Сабиша ✧ личная вселенная</title><link rel="stylesheet" href="style.css"></head>
-<body><div id="gate" class="gate"><div class="gate-decor">✧</div><section class="window login"><div class="titlebar"><span>♡ только для своих</span><span>− □ ×</span></div><div class="login-body"><span class="eyebrow">ЛИЧНАЯ ВСЕЛЕННАЯ / 26.10</span><h1>Привет,<br>Сабиша<span>✳</span></h1><p>Твой маленький уголок большого интернета.<br>Введи секретный код и заходи.</p><form id="login"><label for="password">Секретный код</label><div class="input-row"><input id="password" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="••••" required aria-describedby="login-error"><button class="button dark">Войти ↗</button></div><p id="login-error" role="alert"></p></form><div class="login-footer">создано с любовью ♡ <span>версия 14.0</span></div></div></section><span class="gate-bottom">Здесь можно быть собой.</span></div>
-<div id="app" hidden><header><a href="#home" class="brand">сабиша<span>.мир ✳</span></a><div class="header-status"><i></i> в своей вселенной</div><button id="menu-button" class="button" aria-expanded="false" aria-controls="menu">☰ Меню</button></header>
-<div class="ticker"><div>✧ СВОЙ МИР · СВОИ ПРАВИЛА <span>♡</span> 26 ОКТЯБРЯ 2012 <span>✧</span> БЫТЬ СОБОЙ — УЖЕ КРУТО <span>♡</span> СОЗДАНО ДЛЯ САБИШИ <span>✧</span> СВОЙ МИР · СВОИ ПРАВИЛА</div></div>
-<main id="content" tabindex="-1"></main><footer><span>Сабиша © <span id="year"></span> · личная территория ♡</span><span>Записи хранятся только в этом браузере. <button class="text-button" data-nav="settings">Сделать копию ↗</button></span></footer>
-<div id="menu-shade" hidden></div><aside id="menu" hidden aria-label="Разделы сайта"><div class="menu-top"><span>Куда отправимся?</span><button id="close-menu" aria-label="Закрыть меню">×</button></div><nav id="nav"></nav><div class="menu-bottom">Это твой интернет.<br>Обустраивай как нравится. ✧</div></aside></div><div id="toast" role="status" aria-live="polite"></div><div id="confetti" aria-hidden="true"></div><script src="app.js"></script></body></html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#f7a9d0" />
+    <meta
+      name="description"
+      content="Личная вселенная Сабиши. Четырнадцать лет, бесконечность возможностей."
+    />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <title>Сабиша ✧ личная вселенная</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="gate" class="gate">
+      <div class="gate-decor">✧</div>
+      <section class="window login">
+        <div class="titlebar">
+          <span>♡ только для своих</span><span>− □ ×</span>
+        </div>
+        <div class="login-body">
+          <span class="eyebrow">ЛИЧНАЯ ВСЕЛЕННАЯ / 26.10</span>
+          <h1>Привет,<br />Сабиша<span>✳</span></h1>
+          <p>
+            Твой маленький уголок большого интернета.<br />Введи секретный код и
+            заходи.
+          </p>
+          <form id="login">
+            <label for="password">Секретный код</label>
+            <div class="input-row">
+              <input
+                id="password"
+                type="password"
+                inputmode="numeric"
+                maxlength="4"
+                autocomplete="off"
+                placeholder="••••"
+                required
+                aria-describedby="login-error"
+              /><button class="button dark">Войти ↗</button>
+            </div>
+            <p id="login-error" role="alert"></p>
+          </form>
+          <div class="login-footer">
+            создано с любовью ♡ <span>версия 14.0</span>
+          </div>
+        </div>
+      </section>
+      <span class="gate-bottom">Здесь можно быть собой.</span>
+    </div>
+    <div id="app" hidden>
+      <header>
+        <a href="#home" class="brand">сабиша<span>.мир ✳</span></a>
+        <div class="header-status"><i></i> в своей вселенной</div>
+        <button
+          id="menu-button"
+          class="button"
+          aria-expanded="false"
+          aria-controls="menu"
+        >
+          ☰ Меню
+        </button>
+      </header>
+      <div class="ticker">
+        <div>
+          ✧ СВОЙ МИР · СВОИ ПРАВИЛА <span>♡</span> 26 ОКТЯБРЯ 2012
+          <span>✧</span> БЫТЬ СОБОЙ — УЖЕ КРУТО <span>♡</span> СОЗДАНО ДЛЯ
+          САБИШИ <span>✧</span> СВОЙ МИР · СВОИ ПРАВИЛА
+        </div>
+      </div>
+      <main id="content" tabindex="-1"></main>
+      <footer>
+        <span>Сабиша © <span id="year"></span> · личная территория ♡</span
+        ><span
+          >Записи хранятся только в этом браузере.
+          <button class="text-button" data-nav="settings">
+            Сделать копию ↗
+          </button></span
+        >
+      </footer>
+      <div id="menu-shade" hidden></div>
+      <aside id="menu" hidden aria-label="Разделы сайта">
+        <div class="menu-top">
+          <span>Куда отправимся?</span
+          ><button id="close-menu" aria-label="Закрыть меню">×</button>
+        </div>
+        <nav id="nav"></nav>
+        <div class="menu-bottom">
+          Это твой интернет.<br />Обустраивай как нравится. ✧
+        </div>
+      </aside>
+    </div>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <div id="confetti" aria-hidden="true"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
