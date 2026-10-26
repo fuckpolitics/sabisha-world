@@ -1232,5 +1232,251 @@ body.night .puzzle-board button {
 }
 
 /* Explicit contrast for buttons inside colored windows. */
-.button.lime, .button.pink { color: #292337; }
-.birthday .button { color: #292337; }
+.button.lime,
+.button.pink {
+  color: #292337;
+}
+.birthday .button {
+  color: #292337;
+}
+.cloud-panel {
+  padding-bottom: 15px;
+}
+.friend-profile {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 400;
+}
+.friend-profile summary {
+  cursor: pointer;
+  color: #5445ad;
+}
+.friend-profile p {
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+.guest-main {
+  max-width: 760px;
+  padding-top: 55px;
+}
+.guest-main h1 {
+  font-size: 40px;
+}
+.guest-main #friend-success {
+  text-align: center;
+  padding: 25px;
+}
+.pet-photo {
+  width: 100%;
+  height: 350px;
+  display: block;
+  object-fit: cover;
+  object-position: 50% 58%;
+  border: 2px solid #292337;
+  margin-bottom: 22px;
+}
+.cat-photo {
+  object-position: center;
+  height: 350px;
+}
+.photo-memory {
+  margin: 0;
+  padding: 15px;
+  background: #fffdf8;
+  border: 2px solid #292337;
+  box-shadow: 5px 5px #292337;
+  transform: rotate(-1deg);
+  color: #292337;
+}
+.photo-memory img {
+  width: 100%;
+  display: block;
+}
+.photo-memory figcaption {
+  padding: 20px 5px;
+  font-family: Unbounded;
+  font-size: 24px;
+}
+.photo-memory figcaption span {
+  display: block;
+  font:
+    12px "Golos Text",
+    sans-serif;
+  margin-top: 12px;
+}
+.anime-banner {
+  width: 100%;
+  display: block;
+  border: 2px solid #292337;
+  margin-bottom: 20px;
+}
+.star-sky {
+  position: relative;
+  height: 430px;
+  background:
+    radial-gradient(ellipse at 30% 60%, #6755a3, transparent 60%), #17112e;
+  overflow: hidden;
+  border: 2px solid #292337;
+  color: #fff;
+}
+.star-sky:before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(#ffffff55 1px, transparent 1px);
+  background-size: 29px 33px;
+}
+.memory-star {
+  position: absolute;
+  border: 0;
+  background: none;
+  color: #deff7e;
+  font-size: 27px;
+  text-shadow: 0 0 15px #f8acd2;
+  transform: translate(-50%, -50%);
+  transition: transform 0.2s;
+}
+.memory-star:hover {
+  transform: translate(-50%, -50%) scale(1.5);
+}
+.sky-empty {
+  position: absolute;
+  top: 45%;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  font-size: 12px;
+}
+.star-detail {
+  padding: 20px;
+  background: #e5e1ff;
+  min-height: 80px;
+  color: #292337;
+}
+.star-detail p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.maze-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 480px) 1fr;
+  gap: 30px;
+  align-items: center;
+}
+.maze-board {
+  display: grid;
+  grid-template-columns: repeat(11, 1fr);
+  border: 3px solid #292337;
+  aspect-ratio: 1;
+  background: #e6e3ef;
+}
+.maze-cell {
+  min-width: 0;
+  position: relative;
+  aspect-ratio: 1;
+}
+.maze-cell.wall {
+  background: #484273;
+  box-shadow:
+    inset 2px 2px #746d9b,
+    inset -2px -2px #292337;
+}
+.maze-cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid #ec91c7;
+  position: absolute;
+}
+.maze-cell img[alt="Патрик"] {
+  object-position: 50% 60%;
+  outline: 2px solid #deff7e;
+  z-index: 1;
+}
+.dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 48px);
+  gap: 7px;
+  justify-content: center;
+  margin: 20px 0;
+}
+.dpad button {
+  height: 45px;
+  background: #deff7e;
+  color: #292337;
+  font-size: 24px;
+}
+.dpad button:first-child {
+  grid-column: 2;
+}
+.dpad button:nth-child(2) {
+  grid-column: 1;
+}
+.puzzle-board .piece {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+}
+.puzzle-board .piece img {
+  position: absolute;
+  width: 300%;
+  height: 300%;
+  max-width: none;
+  object-fit: cover;
+}
+.puzzle-board .piece span {
+  position: absolute;
+  bottom: 3px;
+  right: 5px;
+  background: #fff9;
+  border-radius: 4px;
+  padding: 2px 5px;
+  font: 12px monospace;
+  color: #292337;
+}
+.puzzle-reference {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border: 2px solid #292337;
+}
+.puzzle-controls {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  justify-content: center;
+}
+.puzzle-controls select {
+  max-width: 200px;
+}
+@media (max-width: 700px) {
+  .maze-layout {
+    grid-template-columns: 1fr;
+  }
+  .star-sky {
+    height: 330px;
+  }
+  .guest-main h1 {
+    font-size: 30px;
+  }
+  .pet-photo,
+  .cat-photo {
+    height: 300px;
+  }
+  .cloud-panel .settings-actions {
+    gap: 15px;
+  }
+}
+.birthday-art {
+  display: block;
+  width: 100%;
+  max-width: 900px;
+  max-height: 540px;
+  object-fit: cover;
+  border: 2px solid #292337;
+  margin-bottom: 25px;
+  box-shadow: 5px 5px #292337;
+}
+
+.anime-home{display:block;width:100%;max-height:420px;object-fit:cover;object-position:center 42%;border:2px solid var(--ink);border-radius:18px;margin:0 0 24px}

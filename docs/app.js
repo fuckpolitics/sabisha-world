@@ -5,6 +5,11 @@ const KEY = "sabisha-world-v1",
   BORN = Date.parse("2012-10-26T04:50:00+04:00");
 const defaults = () => ({
   friends: [],
+  receivedFriends: [],
+  drafts: {},
+  stars: [],
+  game: null,
+  puzzleState: null,
   enemies: [],
   tasks: [],
   notes: [],
@@ -57,6 +62,7 @@ function id() {
     : Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 function save() {
+  window.SabishaCloud?.changed();
   try {
     localStorage.setItem(KEY, JSON.stringify(data));
     return true;
@@ -113,8 +119,22 @@ function validate(v) {
       if (!x || typeof x.id !== "string" || typeof x.text !== "string")
         throw Error(k);
       const a = { id: x.id.slice(0, 100), text: x.text.slice(0, 30000) };
-      if (k === "friends")
+      if (k === "friends") {
         a.rating = Math.max(1, Math.min(5, Number(x.rating) || 3));
+        if (x.profile && typeof x.profile === "object") {
+          a.profile = {};
+          for (const key of [
+            "nickname",
+            "birthday",
+            "music",
+            "hobbies",
+            "memory",
+            "wish",
+          ])
+            if (typeof x.profile[key] === "string")
+              a.profile[key] = x.profile[key].slice(0, 600);
+        }
+      }
       if (k === "tasks") {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(x.date)) throw Error("date");
         a.date = x.date;
@@ -149,6 +169,62 @@ function validate(v) {
     v.drawing.length < 4000000
   )
     d.drawing = v.drawing;
+  d.receivedFriends = Array.isArray(v.receivedFriends)
+    ? v.receivedFriends.filter((x) => typeof x === "string").slice(-5000)
+    : [];
+  d.drafts = {};
+  if (v.drafts && typeof v.drafts === "object")
+    for (const [key, value] of Object.entries(v.drafts)) {
+      if (key.length < 200 && value && typeof value === "object") {
+        d.drafts[key] = {};
+        for (const [k, x] of Object.entries(value))
+          if (typeof x === "string" && k.length < 100)
+            d.drafts[key][k] = x.slice(0, 30000);
+      }
+    }
+  d.stars = Array.isArray(v.stars)
+    ? v.stars
+        .filter(
+          (x) => x && typeof x.id === "string" && typeof x.text === "string",
+        )
+        .map((x) => ({
+          id: x.id.slice(0, 100),
+          text: x.text.slice(0, 1000),
+          x: Math.max(5, Math.min(95, Number(x.x) || 50)),
+          y: Math.max(8, Math.min(88, Number(x.y) || 50)),
+          date: String(x.date || ""),
+        }))
+        .slice(0, 300)
+    : [];
+  if (
+    v.game &&
+    Array.isArray(v.game.cells) &&
+    v.game.cells.length === 121 &&
+    v.game.cells.every((n) => n === 0 || n === 1) &&
+    Number.isInteger(v.game.pos) &&
+    v.game.pos >= 0 &&
+    v.game.pos < 121 &&
+    v.game.cells[v.game.pos] === 0
+  )
+    d.game = {
+      cells: v.game.cells,
+      pos: v.game.pos,
+      moves: Math.max(0, Number(v.game.moves) || 0),
+      wins: Math.max(0, Number(v.game.wins) || 0),
+      won: !!v.game.won,
+    };
+  if (
+    v.puzzleState &&
+    Array.isArray(v.puzzleState.tiles) &&
+    v.puzzleState.tiles.length === 9 &&
+    new Set(v.puzzleState.tiles).size === 9 &&
+    v.puzzleState.tiles.every((n) => Number.isInteger(n) && n >= 0 && n <= 8)
+  )
+    d.puzzleState = {
+      tiles: v.puzzleState.tiles,
+      moves: Math.max(0, Number(v.puzzleState.moves) || 0),
+      image: "ninja-team",
+    };
   return d;
 }
 const routes = [
@@ -162,6 +238,9 @@ const routes = [
   ["dreams", "✧", "Список мечт"],
   ["puzzle", "▦", "Мини-пазл"],
   ["pets", "♧", "Патрик и Андрей"],
+  ["stars", "✦", "Созвездие моментов"],
+  ["maze", "忍", "Миссия Патрика"],
+  ["memories", "♡", "Наши моменты"],
   ["wishes", "✳", "Пожелания"],
   ["gift", "♢", "Специальный подарок"],
   ["capsule", "✉", "Капсула времени"],
@@ -183,13 +262,17 @@ function navButton(route, label, cls = "button") {
 $("#nav").innerHTML = routes
   .map(([r, i, n]) => `<a href="#${r}"><span>${i}</span>${n}</a>`)
   .join("");
-$("#login").addEventListener("submit", (e) => {
+$("#login").addEventListener("submit", async (e) => {
   e.preventDefault();
   if ($("#password").value !== "2610") {
     $("#login-error").textContent = "Код не подошёл. Попробуй ещё раз ♡";
     $("#password").select();
     return;
   }
+  const enterButton=e.target.querySelector("button");
+  enterButton.disabled=true; enterButton.textContent="Загружаем твой мир…";
+  await window.SabishaCloud?.unlock("2610");
+  enterButton.disabled=false; enterButton.textContent="Открыть мой мир ↗";
   unlocked = true;
   $("#password").value = "";
   $("#gate").hidden = true;
@@ -259,6 +342,9 @@ function render() {
     dreams,
     puzzle,
     pets,
+    stars,
+    maze,
+    memories,
     wishes,
     gift,
     capsule,
@@ -267,6 +353,9 @@ function render() {
   };
   $("#content").innerHTML = views[page]();
   bind();
+  bindExtras();
+  restoreDrafts();
+  window.SabishaCloud?.mount();
   tick();
 }
 const moodIcons = ["☀️", "🥰", "😌", "☁️", "🌧️"],
@@ -280,7 +369,7 @@ const moodIcons = ["☀️", "🥰", "😌", "☁️", "🌧️"],
 function home() {
   const birthday = localDate() === "2026-10-26",
     before = localDate() < "2026-10-26";
-  return `<section class="hero"><div><span class="eyebrow">✦ ЛИЧНОЕ ПРОСТРАНСТВО САБИШИ</span><h1>Твой мир.<br><em>Твои правила.</em></h1><p>Немного хаоса, много мечт и всё самое твоё.</p></div><div class="hero-badge"><span>НОВАЯ ГЛАВА</span><strong>14</strong><span>26 / 10 / 2026</span></div></section><div class="dashboard">${win("◷ жизнь в прямом эфире", `<span class="eyebrow">МИР СТАЛ ЛУЧШЕ УЖЕ</span><div class="number" id="life">—</div><span class="unit">миллисекунд назад</span><span class="spark" aria-hidden="true">✳</span><div class="detail"><span>С 26 ОКТЯБРЯ 2012</span><span id="life-days"></span></div>`, "counter")}${win("✳ особенный день", `<h2>${birthday ? "С днём<br>рождения!" : before ? "Загрузка<br>главы 14…" : "Глава 14.<br>Продолжаем!"}</h2><p>${before ? "26 октября — твой день.<br>И день Андрея, между прочим. ♡" : "Тебе — 14, Андрею — 7.<br>Двойной повод для праздника. ♡"}</p>${navButton("wishes", "Открыть поздравления ↗", "button lime")}<span class="star" aria-hidden="true">✧</span>`, "birthday")}${win("☀ прогноз внутренней погоды", `<h2>Как ты сегодня?</h2><div class="moods">${moodIcons.map((x, i) => `<button data-mood="${i}" class="${data.moods[localDate()] === i ? "selected" : ""}" aria-label="${moodNames[i]}" aria-pressed="${data.moods[localDate()] === i}">${x}</button>`).join("")}</div><div id="mood-label" class="small">${data.moods[localDate()] !== undefined ? moodNames[data.moods[localDate()]] : "Любая погода — нормальная."}</div>`, "mood")}${win("▤ мысли вслух", `<h2>Дорогой дневник…</h2><p>${data.notes.length ? esc(data.notes[0].text.slice(0, 95)) + (data.notes[0].text.length > 95 ? "…" : "") : "Здесь можно всё: мечтать, ворчать, хранить странные идеи и хорошие дни."}</p>${navButton("diary", "Написать пару строк ↗", "text-button")}<span class="doodle" aria-hidden="true">♡</span>`, "note-preview")}${win("♫ на твоей волне", `<div class="cd" aria-hidden="true"></div><h2 id="artist">Перемотка</h2><p>Саундтрек твоей вселенной</p><button class="button" id="next-artist">Другой исполнитель ⇄</button>`, "music")}</div><div class="shortcuts">${[
+  return `<section class="hero"><div><span class="eyebrow">✦ ЛИЧНОЕ ПРОСТРАНСТВО САБИШИ</span><h1>Твой мир.<br><em>Твои правила.</em></h1><p>Немного хаоса, много мечт и всё самое твоё.</p></div><div class="hero-badge"><span>НОВАЯ ГЛАВА</span><strong>14</strong><span>26 / 10 / 2026</span></div></section><img class="anime-home" src="assets/ninja-team.png" alt="Сабиша, Патрик, Андрей и ты — команда аниме-ниндзя"><div class="dashboard">${win("◷ жизнь в прямом эфире", `<span class="eyebrow">МИР СТАЛ ЛУЧШЕ УЖЕ</span><div class="number" id="life">—</div><span class="unit">миллисекунд назад</span><span class="spark" aria-hidden="true">✳</span><div class="detail"><span>С 26 ОКТЯБРЯ 2012</span><span id="life-days"></span></div>`, "counter")}${win("✳ особенный день", `<h2>${birthday ? "С днём<br>рождения!" : before ? "Загрузка<br>главы 14…" : "Глава 14.<br>Продолжаем!"}</h2><p>${before ? "26 октября — твой день.<br>И день Андрея, между прочим. ♡" : "Тебе — 14, Андрею — 7.<br>Двойной повод для праздника. ♡"}</p>${navButton("wishes", "Открыть поздравления ↗", "button lime")}<span class="star" aria-hidden="true">✧</span>`, "birthday")}${win("☀ прогноз внутренней погоды", `<h2>Как ты сегодня?</h2><div class="moods">${moodIcons.map((x, i) => `<button data-mood="${i}" class="${data.moods[localDate()] === i ? "selected" : ""}" aria-label="${moodNames[i]}" aria-pressed="${data.moods[localDate()] === i}">${x}</button>`).join("")}</div><div id="mood-label" class="small">${data.moods[localDate()] !== undefined ? moodNames[data.moods[localDate()]] : "Любая погода — нормальная."}</div>`, "mood")}${win("▤ мысли вслух", `<h2>Дорогой дневник…</h2><p>${data.notes.length ? esc(data.notes[0].text.slice(0, 95)) + (data.notes[0].text.length > 95 ? "…" : "") : "Здесь можно всё: мечтать, ворчать, хранить странные идеи и хорошие дни."}</p>${navButton("diary", "Написать пару строк ↗", "text-button")}<span class="doodle" aria-hidden="true">♡</span>`, "note-preview")}${win("♫ на твоей волне", `<div class="cd" aria-hidden="true"></div><h2 id="artist">Перемотка</h2><p>Саундтрек твоей вселенной</p><button class="button" id="next-artist">Другой исполнитель ⇄</button>`, "music")}</div><div class="shortcuts">${[
     ["friends", "♡", "Мои люди"],
     ["quests", "▧", "Мои квесты"],
     ["puzzle", "▦", "Собрать пазл"],
@@ -333,7 +422,7 @@ function people(type) {
     ) +
     win(
       friend ? "мои люди" : "чёрный список.exe",
-      `<form id="people-form" class="input-row"><input name="text" maxlength="100" placeholder="${friend ? "Имя или ник" : "Кто или что бесит?"}" aria-label="Имя" required>${friend ? '<select name="rating" class="rating" aria-label="Рейтинг"><option>5</option><option>4</option><option selected>3</option><option>2</option><option>1</option></select>' : ""}<button class="button pink">＋ Добавить</button></form>${friend ? '<div class="field"><label for="sort">Порядок</label><select id="sort"><option value="rating">По рейтингу ↓</option><option value="name">По имени А–Я</option></select></div>' : ""}<div class="list">${items.length ? items.map((x) => `<div class="list-item"><span>${friend ? "♡" : "⚡"}</span><strong class="grow">${esc(x.text)}</strong>${friend ? `<select data-rating="${esc(x.id)}" class="rating" aria-label="Рейтинг ${esc(x.text)}">${[5, 4, 3, 2, 1].map((n) => `<option ${n === x.rating ? "selected" : ""}>${n}</option>`).join("")}</select>` : ""}<button class="delete" data-delete="${esc(x.id)}" data-type="${type}" aria-label="Удалить ${esc(x.text)}">×</button></div>`).join("") : empty(friend ? "Пока тихо. Добавь первого человека ♡" : "Пусто — и прекрасно. Пусть так и будет.")}</div>`,
+      `${friend ? '<div id="friend-cloud" class="prompt-box" style="margin:0 0 24px">Подключаем анкеты…</div>' : ""}<form id="people-form" class="input-row"><input name="text" maxlength="100" placeholder="${friend ? "Имя или ник" : "Кто или что бесит?"}" aria-label="Имя" required>${friend ? '<select name="rating" class="rating" aria-label="Рейтинг"><option>5</option><option>4</option><option selected>3</option><option>2</option><option>1</option></select>' : ""}<button class="button pink">＋ Добавить</button></form>${friend ? '<div class="field"><label for="sort">Порядок</label><select id="sort"><option value="rating">По рейтингу ↓</option><option value="name">По имени А–Я</option></select></div>' : ""}<div class="list">${items.length ? items.map((x) => `<div class="list-item"><span>${friend ? "♡" : "⚡"}</span><div class="grow"><strong>${esc(x.text)}</strong>${x.profile ? profileDetails(x.profile) : ""}</div>${friend ? `<select data-rating="${esc(x.id)}" class="rating" aria-label="Рейтинг ${esc(x.text)}">${[5, 4, 3, 2, 1].map((n) => `<option ${n === x.rating ? "selected" : ""}>${n}</option>`).join("")}</select>` : ""}<button class="delete" data-delete="${esc(x.id)}" data-type="${type}" aria-label="Удалить ${esc(x.text)}">×</button></div>`).join("") : empty(friend ? "Пока тихо. Добавь первого человека ♡" : "Пусто — и прекрасно. Пусть так и будет.")}</div>`,
     )
   );
 }
@@ -423,7 +512,7 @@ function creative() {
     ) +
     win(
       "холст.png",
-      `<div class="canvas-tools"><label>Цвет <input id="brush-color" type="color" value="#e04c9b"></label><label>Кисть <input id="brush-size" type="range" min="2" max="35" value="7"></label><button id="clear-canvas" class="button">Очистить</button><button id="save-canvas" class="button pink">Сохранить</button><button id="download-canvas" class="button">Скачать PNG ↗</button></div><canvas id="canvas" width="1000" height="550" aria-label="Холст для рисования"></canvas><p class="small">Рисуй мышкой или пальцем. Нажми «Сохранить», прежде чем уйти со страницы.</p>`,
+      `<div class="canvas-tools"><label>Цвет <input id="brush-color" type="color" value="#e04c9b"></label><label>Кисть <input id="brush-size" type="range" min="2" max="35" value="7"></label><button id="clear-canvas" class="button">Очистить</button><button id="save-canvas" class="button pink">Сохранить</button><button id="download-canvas" class="button">Скачать PNG ↗</button></div><canvas id="canvas" width="1000" height="550" aria-label="Холст для рисования"></canvas><p class="small">Рисуй мышкой или пальцем. Каждый законченный штрих сохраняется автоматически.</p>`,
     ) +
     `<div class="prompt-box"><span class="eyebrow">ИСКРА ДЛЯ ВДОХНОВЕНИЯ</span><p id="creative-idea">${ideas[0]}</p><button id="new-idea" class="text-button">Ещё идею ⇄</button></div>`
   );
@@ -445,7 +534,7 @@ function pets() {
       "Патрик и Андрей",
       "Два важных жителя твоей вселенной.",
     ) +
-    `<div class="two-col">${win("патрик.exe", `<div class="pet-art" aria-hidden="true">🐩</div><h2>Патрик</h2><span class="pill">ТОЙ-ПУДЕЛЬ</span><p class="pet-caption">Маленький пёс, большое место в сердце.</p><p class="help">Почётный хранитель уюта и вдохновитель новых приключений.</p>`, "pet-card")}${win("андрей.exe", `<div class="pet-art cat" aria-hidden="true">🐈‍⬛</div><h2>Андрей</h2><span class="pill">РУССКИЙ ГОЛУБОЙ</span><p class="pet-caption">Один день рождения на двоих — это судьба.</p><p class="help">Родился 26 октября 2019 года. 26 октября 2026 ему исполняется 7 лет. Двойной праздник, двойная порция любви. ♡</p>`, "pet-card")}</div>`
+    `<div class="two-col">${win("патрик.exe", `<img class="pet-photo" src="assets/patrick.png" alt="Патрик, той-пудель окраса фантом" loading="lazy"><h2>Патрик</h2><span class="pill">ТОЙ-ПУДЕЛЬ · ФАНТОМ</span><p class="pet-caption">Маленький пёс, большое место в сердце.</p><p class="help">Почётный хранитель уюта и вдохновитель новых приключений.</p>`, "pet-card")}${win("андрей.exe", `<img class="pet-photo cat-photo" src="assets/andrey.png" alt="Андрей, русский голубой кот" loading="lazy"><h2>Андрей</h2><span class="pill">РУССКИЙ ГОЛУБОЙ</span><p class="pet-caption">Один день рождения на двоих — это судьба.</p><p class="help">Родился 26 октября 2019 года. 26 октября 2026 ему исполняется 7 лет. Двойной праздник, двойная порция любви. ♡</p>`, "pet-card")}</div>`
   );
 }
 const wishTexts = [
@@ -493,7 +582,7 @@ function wishes() {
       "С днём рождения, Сабиша!",
       "Четырнадцать лет. Столько миров ещё предстоит придумать.",
     ) +
-    `<div class="letter"><span class="eyebrow">ПИСЬМО ДЛЯ ТЕБЯ ♡</span><p>Сабиша, пусть твой новый год будет похож на самый классный квест: с интересными находками, неожиданными радостями и людьми, с которыми хочется пройти его вместе.</p><p>Ты умеешь превращать блоки в целые миры, придумывать приключения и собирать картину из маленьких кусочков. Пусть для твоей фантазии всегда хватает места. И пусть этот маленький сайт станет ещё одним таким местом — только твоим.</p><p>С твоими 14! И с семилетием Андрея. Патрику — праздничный обнимательный бонус. ♡</p><button id="celebrate" class="button lime">Добавить немного праздника ✳</button></div><div class="wish-grid">${wishTexts.map(([h, t], i) => `<article class="wish"><span class="wish-num">ПОЖЕЛАНИЕ / 0${i + 1}</span><h2>${h}</h2><p>${t}</p></article>`).join("")}</div>`
+    `<img class="birthday-art" src="assets/ninja-team.png" alt="Сабиша и её команда в аниме-приключении"><div class="letter"><span class="eyebrow">ПИСЬМО ДЛЯ ТЕБЯ ♡</span><p>Сабиша, пусть твой новый год будет похож на самый классный квест: с интересными находками, неожиданными радостями и людьми, с которыми хочется пройти его вместе.</p><p>Ты умеешь превращать блоки в целые миры, придумывать приключения и собирать картину из маленьких кусочков. Пусть для твоей фантазии всегда хватает места. И пусть этот маленький сайт станет ещё одним таким местом — только твоим.</p><p>С твоими 14! И с семилетием Андрея. Патрику — праздничный обнимательный бонус. ♡</p><button id="celebrate" class="button lime">Добавить немного праздника ✳</button></div><div class="wish-grid">${wishTexts.map(([h, t], i) => `<article class="wish"><span class="wish-num">ПОЖЕЛАНИЕ / 0${i + 1}</span><h2>${h}</h2><p>${t}</p></article>`).join("")}</div>`
   );
 }
 function gift() {
@@ -544,13 +633,14 @@ function settings() {
     ) +
     win(
       "твой браузер — твой маленький сейф",
-      `<h2>Оформление</h2><button id="theme" class="button pink">${data.theme === "night" ? "Включить свет ☀" : "Ночной режим ☾"}</button><hr style="margin:25px 0"><h2>Сохранить всё важное</h2><p class="help">Друзья, дневник, рисунок и планы хранятся только в этом браузере. На другом устройстве они появятся после переноса копии. Очистка данных браузера удалит записи.</p><div class="settings-actions"><button id="export" class="button lime">Скачать копию ↓</button><button id="import-button" class="button">Восстановить копию ↑</button><input type="file" id="import" accept="application/json,.json" hidden></div><p class="help">Копия содержит личные записи: храни её у себя. Восстановление заменит текущие данные.</p><hr style="margin:25px 0"><h2>О входе</h2><p class="help">Код — часть игры, а не защита от чужого доступа к устройству. Капсула времени тоже скрыта только интерфейсом. Не храни здесь пароли и другие секреты.</p><button id="lock" class="button">Закрыть свой мир 🔒</button>`,
+      `<section id="cloud-panel" class="cloud-panel"><h2>Облачная копия</h2><p class="help">Подключение…</p></section><hr style="margin:25px 0"><h2>Оформление</h2><button id="theme" class="button pink">${data.theme === "night" ? "Включить свет ☀" : "Ночной режим ☾"}</button><hr style="margin:25px 0"><h2>Сохранить всё важное</h2><p class="help">Друзья, дневник, рисунок и планы сохраняются на устройстве. Они автоматически синхронизируются с облаком и доступны на других устройствах. JSON-копия — дополнительная страховка.</p><div class="settings-actions"><button id="export" class="button lime">Скачать копию ↓</button><button id="import-button" class="button">Восстановить копию ↑</button><input type="file" id="import" accept="application/json,.json" hidden></div><p class="help">Копия содержит личные записи: храни её у себя. Восстановление заменит текущие данные.</p><hr style="margin:25px 0"><h2>О входе</h2><p class="help">Код — часть игры, а не защита от чужого доступа к устройству. Капсула времени тоже скрыта только интерфейсом. Не храни здесь пароли и другие секреты.</p><button id="lock" class="button">Закрыть свой мир 🔒</button>`,
     )
   );
 }
 let tiles = [1, 2, 3, 4, 5, 6, 7, 8, 0],
   moves = 0,
-  puzzleStarted = false;
+  puzzleStarted = false,
+  puzzleImage = "ninja-team";
 function shufflePuzzle() {
   tiles = [1, 2, 3, 4, 5, 6, 7, 8, 0];
   let previous = -1;
@@ -569,18 +659,31 @@ function shufflePuzzle() {
   if (tiles.every((v, i) => v === (i + 1) % 9)) return shufflePuzzle();
   moves = 0;
   puzzleStarted = true;
+  rememberPuzzle();
+}
+function rememberPuzzle() {
+  data.puzzleState = { tiles: [...tiles], moves, image: puzzleImage };
+  save();
 }
 function puzzle() {
-  if (!puzzleStarted) shufflePuzzle();
+  if (!puzzleStarted) {
+    if (data.puzzleState) {
+      tiles = [...data.puzzleState.tiles];
+      moves = data.puzzleState.moves;
+      puzzleImage = data.puzzleState.image;
+      puzzleStarted = true;
+    } else shufflePuzzle();
+  }
+  const solved = tiles.every((v, i) => v === (i + 1) % 9);
   return (
     heading(
       "▦ ОДНА ДЕТАЛЬ ЗА ДРУГОЙ",
-      "Маленький пазл",
-      "Собери числа от 1 до 8 по порядку. Пустая клетка должна остаться справа внизу.",
+      "Собери команду ниндзя",
+      "Передвигай фрагменты рядом с пустой клеткой и собери аниме-картинку.",
     ) +
     win(
-      "пятнашки: мини-версия",
-      `<div class="puzzle-wrap"><div class="puzzle-board">${tiles.map((n, i) => `<button data-tile="${i}" ${n === 0 ? "disabled" : ""} aria-label="${n ? "Передвинуть " + n : "Пустая клетка"}">${n || ""}</button>`).join("")}</div><p id="puzzle-result" role="status">Ходов: ${moves}</p><button id="shuffle" class="button pink">Новая раскладка ⇄</button><p class="help">Нажми на плитку рядом с пустой клеткой.</p></div>`,
+      "аниме-пазл · твоя команда",
+      `<div class="puzzle-wrap"><div class="puzzle-board">${tiles.map((n, i) => `<button class="piece" data-tile="${i}" ${n === 0 ? "disabled" : ""} aria-label="${n ? "Передвинуть " + n : "Пустая клетка"}">${n ? `<img src="assets/${puzzleImage}.png" alt="" style="left:${-((n - 1) % 3) * 100}%;top:${-Math.floor((n - 1) / 3) * 100}%">` : ""}</button>`).join("")}</div><p id="puzzle-result" role="status">${solved ? "Получилось! ♡ " : ""}Ходов: ${moves}</p><button id="shuffle" class="button pink">Новая раскладка ⇄</button><details style="margin-top:20px"><summary>Посмотреть подсказку</summary><img class="puzzle-reference" src="assets/${puzzleImage}.png" alt="Целая фотография для подсказки"></details><p class="help">Прогресс сохраняется. Можно продолжить позже.</p></div>`,
     )
   );
 }
@@ -643,6 +746,8 @@ function bind() {
       "ssshhhiiittt",
       "тёмный принц",
       "Королевский 17",
+      "madk1d",
+      "Урал Гайсин",
     ];
     $("#next-artist").onclick = () => {
       $("#artist").textContent = artists[++artistIndex % artists.length];
@@ -654,6 +759,7 @@ function bind() {
       const f = new FormData(e.target),
         text = String(f.get("text")).trim();
       if (!text) return;
+      clearDraft();
       data[page].push({
         id: id(),
         text,
@@ -701,6 +807,7 @@ function bind() {
       e.preventDefault();
       const text = new FormData(e.target).get("text").trim();
       if (!text) return;
+      clearDraft();
       data.tasks.push({ id: id(), text, date: selectedDate, done: false });
       save();
       render();
@@ -711,6 +818,7 @@ function bind() {
       e.preventDefault();
       const text = new FormData(e.target).get("text").trim();
       if (!text) return;
+      clearDraft();
       data.dreams.push({ id: id(), text, done: false });
       save();
       render();
@@ -727,6 +835,7 @@ function bind() {
         text,
         date: new Date().toLocaleString("ru-RU"),
       };
+      clearDraft();
       if (editingNote)
         data.notes = data.notes.map((x) => (x.id === editingNote ? n : x));
       else data.notes.unshift(n);
@@ -756,6 +865,7 @@ function bind() {
         text = f.get("text").trim(),
         title = f.get("title").trim();
       if (!text || !title) return;
+      clearDraft();
       data.quests.unshift({ id: id(), title, text });
       save();
       render();
@@ -778,6 +888,7 @@ function bind() {
       const f = new FormData(e.target),
         text = f.get("text").trim();
       if (!text) return;
+      clearDraft();
       data.capsule = text;
       data.capsuleDate = f.get("date");
       const ok = save();
@@ -835,6 +946,7 @@ function bind() {
             return;
           [tiles[z], tiles[i]] = [tiles[i], tiles[z]];
           moves++;
+          rememberPuzzle();
           render();
           if (tiles.every((v, j) => v === (j + 1) % 9)) {
             $("#puzzle-result").textContent =
@@ -866,6 +978,7 @@ function bind() {
         if (!(await ask("Заменить все текущие записи данными из этой копии?")))
           return;
         data = imported;
+        puzzleStarted = false;
         const ok = save();
         document.body.classList.toggle("night", data.theme === "night");
         render();
@@ -875,6 +988,7 @@ function bind() {
       }
     };
     $("#lock").onclick = () => {
+      window.SabishaCloud?.lock();
       unlocked = false;
       $("#app").hidden = true;
       $("#gate").hidden = false;
@@ -922,15 +1036,21 @@ function setupCanvas() {
       ctx.stroke();
     }
   };
-  c.onpointerup = c.onpointercancel = () => (drawing = false);
+  c.onpointerup = c.onpointercancel = () => {
+    drawing = false;
+    data.drawing = c.toDataURL("image/png");
+    save();
+  };
   $("#clear-canvas").onclick = async () => {
     if (
       await ask(
-        "Очистить холст? Чтобы сохранить пустой холст, нажми «Сохранить».",
+        "Очистить холст? Предыдущую версию можно будет найти в истории облака.",
       )
     ) {
       ctx.fillStyle = "white";
       ctx.fillRect(0, 0, c.width, c.height);
+      data.drawing = c.toDataURL("image/png");
+      save();
     }
   };
   $("#save-canvas").onclick = () => {
@@ -945,3 +1065,268 @@ function setupCanvas() {
     ($("#creative-idea").textContent =
       ideas[Math.floor(Math.random() * ideas.length)]);
 }
+
+function profileDetails(p) {
+  const labels = {
+    nickname: "Ник",
+    birthday: "День рождения",
+    music: "Любимая музыка",
+    hobbies: "Увлечения",
+    memory: "Наше воспоминание",
+    wish: "Пожелание",
+  };
+  return `<details class="friend-profile"><summary>Анкета друга ♡</summary>${Object.entries(
+    labels,
+  )
+    .filter(([k]) => p[k])
+    .map(([k, label]) => `<p><b>${label}</b><br>${esc(p[k])}</p>`)
+    .join("")}</details>`;
+}
+function draftKey() {
+  return page + ":" + (page === "diary" ? editingNote || "new" : "new");
+}
+function clearDraft() {
+  delete data.drafts[draftKey()];
+}
+function restoreDrafts() {
+  if (page === "settings") return;
+  const key = draftKey();
+  for (const form of $$("#content form")) {
+    const fields = [...form.querySelectorAll("input,textarea,select")].filter(
+      (el) =>
+        !["password", "file", "submit", "checkbox", "color", "range"].includes(
+          el.type,
+        ),
+    );
+    for (const field of fields) {
+      const name = field.name || field.id;
+      if (!name) continue;
+      const saved = data.drafts[key]?.[name];
+      if (typeof saved === "string") field.value = saved;
+      field.addEventListener("input", () => {
+        data.drafts[key] ||= {};
+        data.drafts[key][name] = field.value;
+        save();
+      });
+      field.addEventListener("change", () => {
+        data.drafts[key] ||= {};
+        data.drafts[key][name] = field.value;
+        save();
+      });
+    }
+  }
+}
+window.SabishaApp = {
+  escape: esc,
+  notify: toast,
+  confirm: ask,
+  getState: () => JSON.parse(JSON.stringify(data)),
+  replaceState: (value) => {
+    const next = validate(value);
+    data = next;
+    puzzleStarted = false;
+    document.body.classList.toggle("night",data.theme==="night");
+    try {
+      localStorage.setItem(KEY, JSON.stringify(data));
+    } catch {
+      toast("Облако прочитано, но на устройстве не хватило места для копии.");
+    }
+  },
+  refresh: () => {
+    if (
+      unlocked &&
+      !document.activeElement?.matches("input,textarea,select") &&
+      page !== "creative"
+    )
+      render();
+  },
+  downloadState: () =>
+    download(
+      new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }),
+      "sabisha-backup-" + localDate() + ".json",
+    ),
+  receiveFriends: (rows) => {
+    let count = 0;
+    for (const row of rows) {
+      if (data.receivedFriends.includes(row.id)) continue;
+      data.receivedFriends.push(row.id);
+      data.friends.push({
+        id: row.id,
+        text: String(row.name).slice(0, 100),
+        rating: 3,
+        profile: row.answers || {},
+      });
+      count++;
+    }
+    if (count) {
+      save();
+      if (
+        unlocked &&
+        page === "friends" &&
+        !document.activeElement?.matches("input,textarea,select")
+      )
+        render();
+    }
+    return count;
+  },
+};
+function stars() {
+  return (
+    heading(
+      "✦ ЛИЧНЫЙ КОСМОС",
+      "Созвездие моментов",
+      "Каждая звезда — мысль, хорошее воспоминание или маленькая победа.",
+    ) +
+    win(
+      "небо, которое ты создаёшь",
+      `<div class="star-sky" aria-label="Карта воспоминаний">${data.stars.length ? data.stars.map((s, i) => `<button class="memory-star" data-star="${esc(s.id)}" style="left:${s.x}%;top:${s.y}%;--delay:${i % 5}s" aria-label="Открыть воспоминание ${i + 1}">✦</button>`).join("") : '<p class="sky-empty">Твоё небо ещё ждёт первую звезду.</p>'}</div><div id="star-detail" class="star-detail" aria-live="polite">Нажми на звезду, чтобы вспомнить её историю.</div><form id="star-form"><div class="field"><label for="star-text">Что хочется сохранить?</label><textarea id="star-text" name="text" maxlength="1000" required placeholder="Сегодня случилось что-то хорошее…"></textarea></div><button class="button pink">Зажечь звезду ✦</button></form>`,
+    )
+  );
+}
+function makeMaze() {
+  const size = 11,
+    cells = Array(121).fill(1),
+    stack = [[1, 1]];
+  cells[12] = 0;
+  while (stack.length) {
+    const [r, c] = stack.at(-1),
+      next = [
+        [r - 2, c],
+        [r + 2, c],
+        [r, c - 2],
+        [r, c + 2],
+      ].filter(
+        ([a, b]) =>
+          a > 0 && a < 10 && b > 0 && b < 10 && cells[a * size + b] === 1,
+      );
+    if (!next.length) {
+      stack.pop();
+      continue;
+    }
+    const [nr, nc] = next[Math.floor(Math.random() * next.length)];
+    cells[((r + nr) / 2) * size + (c + nc) / 2] = 0;
+    cells[nr * size + nc] = 0;
+    stack.push([nr, nc]);
+  }
+  data.game = {
+    cells,
+    pos: 12,
+    moves: 0,
+    wins: data.game?.wins || 0,
+    won: false,
+  };
+  save();
+}
+function maze() {
+  if (!data.game) makeMaze();
+  const g = data.game;
+  return (
+    heading(
+      "忍 СЕКРЕТНАЯ МИССИЯ",
+      "Патрик ищет Андрея",
+      "Пройди лабиринт и найди кота. Ниндзя-пудель уже готов к приключению.",
+    ) +
+    win(
+      "миссия: вернуть домашнюю команду",
+      `<div class="maze-layout"><div class="maze-board" role="img" aria-label="Лабиринт. Патрик в клетке ${g.pos + 1}. Андрей в правом нижнем углу.">${g.cells.map((cell, i) => `<div class="maze-cell ${cell ? "wall" : "path"}">${i === g.pos ? '<img src="assets/patrick.png" alt="Патрик">' : i === 108 ? '<img src="assets/andrey.png" alt="Андрей">' : ""}</div>`).join("")}</div><div><h2>${g.won ? "Команда снова вместе! ♡" : "Найди дорогу к Андрею"}</h2><p>Шагов: ${g.moves}<br>Пройдено миссий: ${g.wins}</p><div class="dpad"><button data-step="-11" aria-label="Вверх">↑</button><button data-step="-1" aria-label="Влево">←</button><button data-step="11" aria-label="Вниз">↓</button><button data-step="1" aria-label="Вправо">→</button></div><p class="help">Стрелки на клавиатуре или кнопки. Положение и прогресс сохраняются.</p><button id="new-maze" class="button lime">Новая миссия ↗</button></div></div>`,
+    )
+  );
+}
+function moveMaze(step) {
+  const g = data.game;
+  if (!g || g.won) return;
+  const next = g.pos + step;
+  if (
+    next < 0 ||
+    next >= 121 ||
+    g.cells[next] === 1 ||
+    (Math.abs(step) === 1 && Math.floor(g.pos / 11) !== Math.floor(next / 11))
+  )
+    return;
+  g.pos = next;
+  g.moves++;
+  if (next === 108) {
+    g.won = true;
+    g.wins++;
+    celebrate();
+  }
+  save();
+  render();
+}
+function memories() {
+  return (
+    heading(
+      "♡ СВОИ ЛЮДИ, СВОИ ИСТОРИИ",
+      "Наши моменты",
+      "Есть воспоминания, для которых хочется оставить отдельное место.",
+    ) +
+    `<div class="two-col"><figure class="photo-memory"><img src="assets/together.png" alt="Сабиша и Тимур вместе"><figcaption>Мы ♡<span>Маленький кадр большой истории.</span></figcaption></figure>${win("команда одного приключения", `<img class="anime-banner" src="assets/ninja-team.png" alt="Сабиша, Тимур, Патрик и Андрей как аниме-команда ниндзя" loading="lazy"><h2>У каждого мира есть своя команда.</h2><p class="help">У этого — ты, твои идеи и те, с кем хочется делиться приключениями.</p>${navButton("stars", "Сохранить своё воспоминание ✦", "button pink")}`)}</div>`
+  );
+}
+function bindExtras() {
+  if (page === "stars") {
+    $("#star-form").onsubmit = (e) => {
+      e.preventDefault();
+      const text = new FormData(e.target).get("text").trim();
+      if (!text) return;
+      if (data.stars.length >= 300) {
+        toast("В этом небе уже 300 звёзд.");
+        return;
+      }
+      data.stars.push({
+        id: id(),
+        text,
+        x: 8 + Math.random() * 84,
+        y: 10 + Math.random() * 76,
+        date: localDate(),
+      });
+      clearDraft();
+      save();
+      render();
+    };
+    $$("[data-star]").forEach(
+      (b) =>
+        (b.onclick = () => {
+          const s = data.stars.find((x) => x.id === b.dataset.star);
+          const detail = $("#star-detail");
+          detail.innerHTML = `<div class="small">${formatDate(s.date)}</div><p>${esc(s.text)}</p><button class="text-button" id="remove-star">Убрать эту звезду</button>`;
+          $("#remove-star").onclick = async () => {
+            if (!(await ask("Убрать это воспоминание с неба?"))) return;
+            data.stars = data.stars.filter((x) => x.id !== s.id);
+            save();
+            render();
+          };
+        }),
+    );
+  }
+  if (page === "maze") {
+    $$("[data-step]").forEach(
+      (b) => (b.onclick = () => moveMaze(Number(b.dataset.step))),
+    );
+    $("#new-maze").onclick = async () => {
+      if (
+        data.game.moves &&
+        !data.game.won &&
+        !(await ask("Начать новую миссию вместо текущей?"))
+      )
+        return;
+      makeMaze();
+      render();
+    };
+  }
+}
+document.addEventListener("keydown", (e) => {
+  if (
+    !unlocked ||
+    page !== "maze" ||
+    document.activeElement?.matches("input,textarea,select") ||
+    !$("#menu").hidden ||
+    $(".confirm-overlay")
+  )
+    return;
+  const steps = { ArrowUp: -11, ArrowDown: 11, ArrowLeft: -1, ArrowRight: 1 };
+  if (steps[e.key]) {
+    e.preventDefault();
+    moveMaze(steps[e.key]);
+  }
+});

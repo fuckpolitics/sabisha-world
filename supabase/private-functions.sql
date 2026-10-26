@@ -1,0 +1,14 @@
+create schema if not exists private;
+grant usage on schema private to anon, authenticated;
+alter function public.sabisha_init() set schema private;
+alter function public.sabisha_save(jsonb,bigint) set schema private;
+alter function public.sabisha_submit_friend(uuid,uuid,text,jsonb) set schema private;
+alter function public.sabisha_rotate_invite() set schema private;
+create function public.sabisha_init() returns public.sabisha_worlds language sql security invoker set search_path='' as 'select private.sabisha_init()';
+create function public.sabisha_save(p_content jsonb,p_expected_revision bigint) returns bigint language sql security invoker set search_path='' as 'select private.sabisha_save(p_content,p_expected_revision)';
+create function public.sabisha_submit_friend(p_invite uuid,p_submission_id uuid,p_name text,p_answers jsonb) returns boolean language sql security invoker set search_path='' as 'select private.sabisha_submit_friend(p_invite,p_submission_id,p_name,p_answers)';
+create function public.sabisha_rotate_invite() returns uuid language sql security invoker set search_path='' as 'select private.sabisha_rotate_invite()';
+revoke all on function public.sabisha_init(),public.sabisha_save(jsonb,bigint),public.sabisha_rotate_invite() from public,anon;
+grant execute on function public.sabisha_init(),public.sabisha_save(jsonb,bigint),public.sabisha_rotate_invite() to authenticated;
+revoke all on function public.sabisha_submit_friend(uuid,uuid,text,jsonb) from public;
+grant execute on function public.sabisha_submit_friend(uuid,uuid,text,jsonb) to anon,authenticated;

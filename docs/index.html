@@ -10,7 +10,7 @@
     />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <title>Сабиша ✧ личная вселенная</title>
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="style.css?v=20261026-2" />
   </head>
   <body>
     <div id="gate" class="gate">
@@ -73,7 +73,9 @@
       <footer>
         <span>Сабиша © <span id="year"></span> · личная территория ♡</span
         ><span
-          >Записи хранятся только в этом браузере.
+          ><span data-cloud-status
+            >Записи сохраняются на устройстве · облако в настройках</span
+          >
           <button class="text-button" data-nav="settings">
             Сделать копию ↗
           </button></span
@@ -93,6 +95,9 @@
     </div>
     <div id="toast" role="status" aria-live="polite"></div>
     <div id="confetti" aria-hidden="true"></div>
-    <script src="app.js"></script>
+    <script src="app.js?v=20261026-2"></script>
+    <script src="vendor/supabase.js"></script>
+    <script src="cloud-config.js?v=20261026-2"></script>
+    <script src="cloud.js?v=20261026-2"></script>
   </body>
 </html>

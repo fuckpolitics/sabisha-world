@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="robots" content="noindex" />
+    <title>Анкета для Сабиши ♡</title>
+    <link rel="icon" href="icon.svg" />
+    <link rel="stylesheet" href="style.css?v=20261026-2" />
+  </head>
+  <body>
+    <main class="guest-main">
+      <span class="eyebrow">♡ ПРИГЛАШЕНИЕ В МОЮ ВСЕЛЕННУЮ</span>
+      <div class="page-heading">
+        <h1>Расскажи о себе</h1>
+        <p>
+          Маленькая анкета для Сабиши. Как бумажная тетрадка из детства, только
+          в интернете.
+        </p>
+      </div>
+      <section class="window">
+        <div class="titlebar"><span>анкета друга.exe</span><span>♡</span></div>
+        <div class="body">
+          <form id="friend-questionnaire">
+            <div class="field">
+              <label for="friend-name">Как тебя зовут? *</label
+              ><input
+                id="friend-name"
+                name="name"
+                maxlength="100"
+                autocomplete="given-name"
+                required
+              />
+            </div>
+            <div class="field">
+              <label for="nickname">Как тебя называть / твой ник</label
+              ><input id="nickname" name="nickname" maxlength="100" />
+            </div>
+            <div class="field">
+              <label for="birthday">Когда поздравлять с днём рождения?</label
+              ><input
+                id="birthday"
+                name="birthday"
+                maxlength="50"
+                placeholder="День и месяц, без года"
+              />
+            </div>
+            <div class="field">
+              <label for="music">Кого сейчас слушаешь?</label
+              ><input id="music" name="music" maxlength="300" />
+            </div>
+            <div class="field">
+              <label for="hobbies">Что любишь делать?</label
+              ><textarea
+                id="hobbies"
+                name="hobbies"
+                maxlength="600"
+                rows="3"
+              ></textarea>
+            </div>
+            <div class="field">
+              <label for="memory">Твоё любимое воспоминание с Сабишей</label
+              ><textarea
+                id="memory"
+                name="memory"
+                maxlength="600"
+                rows="3"
+              ></textarea>
+            </div>
+            <div class="field">
+              <label for="wish">Что хочешь ей пожелать?</label
+              ><textarea
+                id="wish"
+                name="wish"
+                maxlength="600"
+                rows="3"
+              ></textarea>
+            </div>
+            <p class="help">
+              Ответы увидит владелец этой анкеты. Заполняй только то, чем
+              хочется поделиться.
+            </p>
+            <button class="button pink" id="submit-friend">
+              Отправить Сабише ♡
+            </button>
+            <p id="friend-result" role="status" class="help"></p>
+          </form>
+          <div id="friend-success" hidden>
+            <div class="lock-art">♡</div>
+            <h2>Анкета долетела!</h2>
+            <p>
+              Твой ответ уже ждёт Сабишу. Спасибо, что заглянул(а) в её
+              вселенную.
+            </p>
+            <p class="small">Отправлять ей что-то ещё не нужно.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script src="vendor/supabase.js"></script>
+    <script src="cloud-config.js?v=20261026-2"></script>
+    <script src="friend.js?v=20261026-2"></script>
+  </body>
+</html>
